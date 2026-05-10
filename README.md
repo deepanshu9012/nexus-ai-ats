@@ -1,107 +1,306 @@
 # Nexus AI: Enterprise Talent Intelligence
 
-> A next-generation ATS powered by **RAG**, **Groq LLMs**, and a premium **Next.js** control surface for intelligent, explainable hiring decisions.
+![Next.js App Router](https://img.shields.io/badge/Next.js-App_Router-000000?logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-DC244C)
+![Groq](https://img.shields.io/badge/Groq-LLM_Inference-F55036)
+![LangChain](https://img.shields.io/badge/LangChain-Agent_Orchestration-1C3C3C)
+
+Nexus AI is an enterprise-ready Applicant Tracking System (ATS) that combines resume parsing, semantic search, and AI-based candidate evaluation into one unified hiring command center.
+
+It is designed for teams that want speed, explainability, and reliability when shortlisting talent at scale.
 
 ![Nexus AI Landing Page](assets/landing-page.png)
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
-![React](https://img.shields.io/badge/React-19-20232A?logo=react)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-0EA5E9?logo=tailwindcss)
-![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.1xx-009688?logo=fastapi)
-![LangChain](https://img.shields.io/badge/LangChain-Agentic_AI-1C3C3C)
-![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-DC244C)
-![Groq](https://img.shields.io/badge/Groq-Llama--3.1--8b--instant-F55036)
+---
+
+## Table of Contents
+
+1. [System Architecture](#system-architecture)
+2. [Product Tour (User Journey)](#product-tour-user-journey)
+3. [Core Technical Features](#core-technical-features)
+4. [Engineering Challenges Solved](#engineering-challenges-solved)
+5. [Tech Stack](#tech-stack)
+6. [Local Installation](#local-installation)
+7. [Environment Variables](#environment-variables)
+8. [API Surface](#api-surface)
 
 ---
 
-## ✨ Features
+## System Architecture
 
-- **Intelligent AI Hiring Agent**  
-  Accepts a job description + vacancy count, queries Qdrant via LangChain tools, and generates structured markdown evaluations with clear fit/missing-skill reasoning.
+```mermaid
+flowchart LR
+    A[Recruiter Uploads Resume PDF] --> B[Next.js Frontend Upload UI]
+    B --> C[FastAPI /upload-resume]
+    C --> D[Resume Text Extraction]
+    D --> E[Groq LLM Parsing<br/>Strict JSON + Negative Constraints]
+    D --> F[all-MiniLM-L6-v2 Embeddings]
+    E --> G[Candidate Profile Payload]
+    F --> H[Vector]
+    G --> I[Qdrant Collection]
+    H --> I
+    J[Recruiter Submits JD + Vacancy Count] --> K[FastAPI /api/agent/screen]
+    K --> L[LangChain Hiring Agent]
+    L --> M[Qdrant Semantic Retrieval Tool]
+    M --> I
+    I --> L
+    L --> N[Groq LLM Candidate Evaluation Report]
+    N --> O[React Markdown Renderer + Dynamic View Profile Buttons]
+```
 
-- **Zero-Hallucination Parsing Pipeline**  
-  Enforces strict **Pydantic** schemas and negative extraction constraints so the LLM focuses on real resume sections (especially chronological work history) even from noisy OCR text.
+### Architecture Notes
 
-- **Master Control Room**  
-  Real-time dark-mode database dashboard for candidate management, live total counts, bulk actions, and rich profile modal inspection.
-
-- **Resilient Vector Storage**  
-  Implements point-based mass deletion to avoid Windows file-lock “zombie collection” failures during large data purges.
-
-- **Dynamic UI Rendering from AI Output**  
-  React logic scans generated markdown, resolves candidate mentions, removes substring false-positives, deduplicates by identity, and renders interactive **View Profile** actions.
+- **Ingestion path:** Resume -> parsing -> structured profile + embedding -> Qdrant upsert.
+- **Retrieval path:** Job Description -> LangChain agent tool call -> semantic candidate retrieval.
+- **Decision path:** LLM produces formatted evaluation reasoning used directly by the UI.
+- **Control path:** Dashboard supports list/search/view/delete/delete-all operations for candidate records.
 
 ---
 
-## 🖼️ Platform Showcase
+## Product Tour (User Journey)
 
-### AI Agent
-![AI Agent Input](assets/ai-agent-input.png)
-![AI Evaluation Report](assets/ai-evaluation-report.png)
+### 1) Authentication Flow
 
-### Candidate Database
-![Candidate Database](assets/candidate-database.png)
-![Candidate Profile Modal](assets/candidate-profile.png)
+Recruiters can create an account and sign in through a lightweight JSON-backed auth system (`backend/users.json`) with JWT issuance.
 
-### Upload & Auth
+<p align="center">
+  <img src="assets/login-page.png" alt="Login Page" width="49%" />
+  <img src="assets/register-page.png" alt="Register Page" width="49%" />
+</p>
+
+### 2) Data Ingestion: Upload Resumes
+
+Users drag and drop resumes, then upload to the ATS backend for parsing and vector storage.
+
 ![Upload Resumes](assets/upload-resumes.png)
-![Login Page](assets/login-page.png)
+
+### 3) Master Control Room
+
+The Candidate Database view provides:
+
+- Global candidate visibility in one table
+- Search by name, email, or skill keywords
+- `Total` candidate badge
+- Bulk actions (`Delete Selected`, `Delete All`)
+- Rich modal profile inspection
+
+<p align="center">
+  <img src="assets/candidate-database.png" alt="Candidate Database" width="49%" />
+  <img src="assets/candidate-profile.png" alt="Candidate Profile Modal" width="49%" />
+</p>
+
+### 4) AI Hiring Agent
+
+Recruiters paste a Job Description, define vacancy count, and receive a structured AI evaluation report grounded in Qdrant retrieval.
+
+<p align="center">
+  <img src="assets/ai-agent-input.png" alt="AI Agent Input" width="49%" />
+  <img src="assets/ai-evaluation-report.png" alt="AI Evaluation Report" width="49%" />
+</p>
 
 ---
 
-## 🧠 Architecture Flow
+## Core Technical Features
 
-Nexus AI follows a retrieval-augmented hiring loop:
+- **RAG-powered recruiting workflow**
+  - Embeds resume text with `all-MiniLM-L6-v2` (384-dim vectors).
+  - Stores vectors + structured candidate payloads in Qdrant.
+  - Retrieves semantically relevant candidates for job-specific evaluation.
 
-1. **Upload (Next.js)**: User uploads resumes from the frontend.
-2. **Parse (FastAPI + Groq)**: Backend extracts structured candidate data using strict Pydantic schemas and guarded prompts.
-3. **Embed + Store (Sentence Transformers + Qdrant)**: Raw text is embedded with `all-MiniLM-L6-v2` and stored in local Qdrant with candidate payloads.
-4. **Screen (AI Agent + LangChain)**: Hiring agent receives job description + candidate count, calls search tools, and retrieves top matches.
-5. **Evaluate (Groq LLM)**: Agent writes markdown analysis of fit gaps and strengths.
-6. **Interact (Next.js Dashboard)**: UI renders report, auto-generates profile actions, and opens detailed candidate modals.
+- **Strict structured resume parsing**
+  - Uses Pydantic schemas for candidate profile validation.
+  - Enforces explicit extraction schema for `name`, `email`, `skills`, `education`, and chronological `work_history`.
+  - Applies negative constraints to avoid pulling summary/objective text into experience details.
+
+- **Experience computation with overlap-safe logic**
+  - Converts parsed work intervals into merged month ranges.
+  - Prevents double-counting overlapping jobs.
+  - Returns rounded `years_experience` for ranking/display consistency.
+
+- **Agentic hiring evaluation**
+  - Uses a LangChain tool-calling agent to force candidate retrieval before recommendation.
+  - Produces structured markdown reasoning per candidate.
+  - Supports recruiter-controlled shortlist size via `num_candidates`.
+
+- **Operational candidate management**
+  - List all candidates from Qdrant payloads.
+  - Delete one, many, or all records through API-driven operations.
+  - UI and backend remain synchronized through explicit record IDs.
+
+- **Dynamic post-processing of LLM report content**
+  - React hooks scan generated markdown for candidate mentions.
+  - Substring conflict filtering removes false-positive partial-name matches.
+  - Deduplication by email/id ensures each candidate appears once in action buttons.
 
 ---
 
-## 🚀 Getting Started
+## Engineering Challenges Solved
+
+### 1) Bypassing OS-Level File Locks in Qdrant Delete-All
+
+**Problem:** Dropping/recreating local collections can trigger file-lock conflicts on Windows, especially under active process handles.
+
+**Solution:** Refactored mass cleanup to point-level deletion using an empty `FilterSelector`:
+
+```python
+client.delete(
+    collection_name=QDRANT_COLLECTION_NAME,
+    points_selector=models.FilterSelector(
+        filter=models.Filter()
+    )
+)
+```
+
+**Impact:** Stable "Delete All" behavior without destructive folder-level operations or lock-related crashes.
+
+### 2) Handling Groq API Rate Limits (HTTP 429)
+
+**Problem:** Resume parsing and filter extraction can fail under burst traffic when the LLM endpoint throttles requests.
+
+**Solution:** Implemented retry loops with rate-limit detection (`RateLimitError` or `429` message checks) and cooldown sleeps before retry.
+
+**Impact:** Higher ingestion reliability and fewer recruiter-facing failures during peak usage.
+
+### 3) Strict LLM Constraints to Minimize Hallucinations
+
+**Problem:** Raw LLM parsing may blend unrelated resume sections, causing profile drift and unreliable candidate fields.
+
+**Solution:** Added:
+
+- strict JSON-only response contract
+- schema validation with Pydantic
+- negative constraints excluding summary/objective text from experience extraction
+- explicit formatting requirements for candidate reasoning blocks using double line breaks (`\n\n`)
+
+**Impact:** Cleaner structured data, predictable markdown rendering, and better downstream candidate ranking quality.
+
+### 4) Dynamic React Hook Deduplication for Interactive Buttons
+
+**Problem:** LLM-generated markdown can mention names inconsistently, leading to duplicate or incorrect "View Profile" actions.
+
+**Solution:** Built a deterministic frontend pipeline:
+
+1. candidate name mention detection from report text
+2. substring suppression (ignore names that are subsets of longer matched names)
+3. identity deduplication by email (fallback: candidate ID)
+
+**Impact:** Accurate, stable, and user-trustworthy profile actions from unstructured LLM output.
+
+---
+
+## Tech Stack
+
+### Frontend
+
+- Next.js (App Router)
+- React
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- React Markdown
+- React Dropzone
+
+### Backend
+
+- Python
+- FastAPI
+- Pydantic
+- Uvicorn
+
+### AI and Retrieval
+
+- Groq API
+- LangChain + LangChain Groq
+- Sentence Transformers (`all-MiniLM-L6-v2`)
+- Qdrant Vector Database
+
+### Data and Auth
+
+- JSON-backed user store (`users.json`)
+- JWT-based session token issuance
+
+---
+
+## Local Installation
 
 ### Prerequisites
 
-- **Python** 3.10+
-- **Node.js** 18+ (or 20+ recommended)
-- **npm**
-- Local **Qdrant** instance on `localhost:6333` (or custom host/port via env)
+- Node.js `18+` (Node `20+` recommended)
+- npm
+- Python `3.10+`
+- Qdrant running on `localhost:6333`
+- Groq API key
 
-### Backend Setup
+Optional for OCR/DOCX parsing paths:
+
+- `tesseract-ocr` installed on your machine
+- Poppler tools (for `pdf2image`)
+
+### 1) Clone and Enter the Repository
+
+```bash
+git clone <your-repo-url>
+cd nexus-ai-ats
+```
+
+### 2) Start Qdrant (Docker)
+
+```bash
+docker run -p 6333:6333 -v %cd%/qdrant_storage:/qdrant/storage qdrant/qdrant
+```
+
+If you are on macOS/Linux, replace `%cd%` with `$(pwd)`.
+
+### 3) Backend Setup (FastAPI)
 
 ```bash
 cd backend
 python -m venv .venv
 ```
 
-**Windows (PowerShell):**
+Windows PowerShell:
+
 ```bash
 .venv\Scripts\Activate.ps1
 ```
 
-**macOS/Linux:**
+macOS/Linux:
+
 ```bash
 source .venv/bin/activate
 ```
 
 Install dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-Run FastAPI:
+Install additional runtime packages used by parser/agent modules if needed:
+
+```bash
+pip install langchain langchain-groq python-docx pytesseract pdf2image pyjwt
+```
+
+Run API server:
+
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Backend will be available at: `http://127.0.0.1:8000`
+Backend URLs:
 
-### Frontend Setup
+- API base: `http://127.0.0.1:8000`
+- Health: `http://127.0.0.1:8000/health`
+- Swagger UI: `http://127.0.0.1:8000/docs`
+
+### 4) Frontend Setup (Next.js)
+
+Open a new terminal:
 
 ```bash
 cd frontend
@@ -109,63 +308,60 @@ npm install
 npm run dev
 ```
 
-Frontend will be available at: `http://localhost:3000`
+Frontend URL:
+
+- `http://localhost:3000`
+
+### 5) Default Login (If No Users Exist Yet)
+
+When `backend/users.json` is empty/missing, the backend seeds:
+
+- Email: `admin@ats.com`
+- Password: `password123`
 
 ---
 
-## 🔐 Environment Variables
+## Environment Variables
 
 Create `backend/.env`:
 
 ```env
-# LLM
-GROQ_API_KEY=your_groq_api_key_here
-
-# Qdrant
+GROQ_API_KEY=your_groq_api_key
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
 QDRANT_COLLECTION_NAME=resumes
-
-# Auth
 JWT_SECRET=super-secret-ats-key
-
-# Optional legacy auth vars (safe to keep)
-ADMIN_EMAIL=admin@ats.com
-ADMIN_PASSWORD=password123
 ```
 
 ---
 
-## 🛠️ Technical Highlights & Learnings
+## API Surface
 
-- **Windows file-lock mitigation for vector DB cleanup**  
-  Replaced collection-level deletion with **filter-based point deletion**, eliminating mass-delete lock failures.
+### Authentication
 
-- **Groq 429 rate-limit resilience**  
-  Added retry-loop backoff behavior with explicit cooldown windows to keep parsing/search-query extraction stable under API pressure.
+- `POST /api/auth/register`
+- `POST /api/auth/login`
 
-- **Strict markdown structure control in agent output**  
-  Prompt constraints now enforce two separate blockquotes with an empty line between fit/missing-skill reasoning for predictable rendering.
+### Ingestion and Search
 
-- **Extraction precision under OCR noise**  
-  Negative prompt constraints + typed schema validation significantly reduce section drift (e.g., summary text incorrectly mapped as experience).
+- `POST /upload-resume`
+- `POST /search`
+- `GET /health`
 
-- **Frontend post-processing of AI text**  
-  Candidate mention parsing includes substring conflict filtering and identity deduplication to prevent duplicate or incorrect profile actions.
+### Candidate Management
 
----
+- `GET /api/candidates`
+- `DELETE /api/candidates`
+- `DELETE /api/candidates/all`
 
-## 🧱 Tech Stack
+### AI Hiring Agent
 
-- **Frontend:** **Next.js 14 (App Router)**, **React**, **Tailwind CSS** (dark glassmorphism UI)
-- **Backend:** **Python**, **FastAPI**
-- **AI/LLM:** **Groq API** (`llama-3.1-8b-instant`), **LangChain**
-- **Vector Search:** **Qdrant** (local vector DB)
-- **Embeddings:** `all-MiniLM-L6-v2`
+- `POST /api/agent/screen`
 
 ---
 
-## 📌 Project Positioning
+## Why Nexus AI
 
-Nexus AI is designed as a production-minded blueprint for modern AI-native recruiting systems: explainable ranking, strict extraction controls, resilient local vector infrastructure, and an operator-friendly enterprise UI.
+Nexus AI is not just an ATS UI. It is a full retrieval-and-reasoning hiring system that addresses real-world operational issues: noisy resumes, rate limits, vector-database lifecycle reliability, and explainable AI decision support for recruiters.
 
+If you are evaluating this project for engineering depth, focus on the parsing constraints, the Qdrant deletion strategy, and the deterministic frontend post-processing around LLM output. Those design choices are what make the system robust in practice.
